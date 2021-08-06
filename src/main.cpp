@@ -5,6 +5,7 @@
 #include "Adafruit_ILI9341.h"
 #include <explosion.h>
 #include <ESP8266WiFi.h>
+#include "../lib/creds.h"
 
 // For the Adafruit shield, these are the default.
 #define TFT_DC D3
@@ -31,7 +32,7 @@ void setup() {
 
   tft.setRotation(1);
 
-  WiFi.begin("Fios-IJE8L", "stem502pen462fleet");
+  WiFi.begin(WIFI_SSID, WIFI_PSK);
   tft.println("Connecting to network");
   while (WiFi.status() != WL_CONNECTED){
     delay(500);
@@ -40,9 +41,9 @@ void setup() {
   tft.print("IP Adress: ");
   tft.println(WiFi.localIP());
   server.begin();
-  tft.print("Open Telnet and connect to IP:");
+  tft.print("Listening at ");
   tft.print(WiFi.localIP());
-  tft.print(" on port ");
+  tft.print(" port ");
   tft.println(port);
   // delay(10000);
 
@@ -83,15 +84,24 @@ void loop(void) {
     }
     while(client.connected()){
       while(client.available()>0){
-        int startx = client.read()<<8 | client.read();
-        int starty = client.read()<<8 | client.read();
-        int widthx = client.read()<<8 | client.read();
-        int widthy = client.read()<<8 | client.read();
+        uint16_t startx = client.read()<<8 | client.read();
+        if(startx>320) continue;
+        uint16_t starty = client.read()<<8 | client.read();
+        if(starty>240) continue;
+        uint16_t width = client.read()<<8 | client.read();
+        if(width>320) continue;
+        uint16_t height = client.read()<<8 | client.read();
+        if(height>240) continue;
+        Serial.printf("%d %d %d %d\n", startx, starty, width, height);
         tft.startWrite();
-        tft.setAddrWindow(startx, starty, widthx, widthy);
+        tft.setAddrWindow(startx, starty, width, height);
         // read data from the connected client
-        for(int i=0; i<widthx*widthy; i++){
-          tft.pushColor(client.read()<<8 | client.read());
+        int i=0;
+        while(i<width*height){
+          if(client.available()>0){
+            tft.pushColor(client.read()<<8 | client.read());
+            i++;
+          }
         }
         // Serial.write(client.read());
       }

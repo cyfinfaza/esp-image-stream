@@ -5,11 +5,15 @@ import socket
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(("192.168.1.205", 8888))
 
-def send(filename):
-	pixels = openAndResize(filename)
+def byteify(number):
+	return [(number & 0xFF00) >> 8, number & 0x00FF]
+
+def send(filename, startx=0, starty=0, width=320, height=240, verbose=True, progressCounter=True):
 	start = time.perf_counter()
-	for y in range(240):
-		for x in range(320):
+	pixels = openAndResize(filename, width, height)
+	s.send(bytes([*byteify(startx), *byteify(starty), *byteify(width), *byteify(height)]))
+	for y in range(height):
+		for x in range(width):
 			try:
 				r, g, b = pixels[x, y]
 			except:
@@ -19,9 +23,9 @@ def send(filename):
 			# print(color & 0b1111100000000000 >> 11, color & 0b0000011111100000 >> 5, color & 0b0000000000011111)
 			# input()
 			s.send(bytes([(color & 0xFF00) >> 8, color & 0x00FF]))
-		print(f"Transmitting {int(y/239*100)}%", end="\r")
-	print()
-	print(f"Done. {time.perf_counter()-start}s")
+		if verbose and progressCounter: print(f"Transmitting {int(y/(height-1)*100)}%", end="\r")
+	if verbose and progressCounter: print()
+	if verbose: print(f"Done. {time.perf_counter()-start}s")
 
 
 if __name__ == "__main__":
